@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="vi" manifest="cache.appcache">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto Jailbreak PS4 - Kenny Yoon</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    :root {
+      --bg-color: #0b0e14;
+      --card-bg: #121820;
+      --item-bg: rgba(255, 255, 255, 0.03);
+      --item-border: rgba(255, 255, 255, 0.08);
+      --accent-color: #0070d1;
+      --text-color: #e6edf3;
+      --text-secondary: #8b949e;
+      --error-color: #f85149;
+      --success-color: #3fb950;
+      --warning-color: #d29922;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .container {
+      background-color: var(--card-bg);
+      border: 1px solid var(--item-border);
+      border-radius: 12px;
+      padding: 35px 30px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Tiêu đề chính & Tiêu đề phụ */
+    #brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+
+    .main-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: var(--accent-color);
+      text-transform: uppercase;
+    }
+
+    .sub-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    hr.divider {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 112, 209, 0.5), transparent);
+      margin-bottom: 25px;
+    }
+
+    /* Khung danh sách hiển thị dạng bảng điều khiển */
+    #wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--item-bg);
+      border: 1px solid var(--item-border);
+      border-radius: 8px;
+      padding: 14px 20px;
+      font-size: 14px;
+    }
+
+    .info-label {
+      color: var(--text-secondary);
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .info-value-static {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-color);
+      text-align: right;
+    }
+
+    /* Định dạng cho các phần tử DOM được JS điều khiển */
+    #state,
+    #det,
+    #cache {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-color);
+      text-align: right;
+    }
+
+    #state.warn {
+      color: var(--warning-color);
+    }
+
+    #state.bad {
+      color: var(--error-color);
+    }
+
+    #state.ok {
+      color: var(--success-color);
+    }
+
+    #cache.cacheok {
+      color: var(--success-color);
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <div id="brand">
+      <div class="main-title">Auto Jailbreak PS4 - Kenny Yoon</div>
+      <div class="sub-title">Hỗ trợ fw 13.02 - 13.52</div>
+    </div>
+
+    <hr class="divider">
+
+    <div id="wrap">
+      <div class="info-row">
+        <span class="info-label">Firmware</span>
+        <div id="det"></div>
+      </div>
+
+      <div class="info-row">
+        <span class="info-label">Tải trọng</span>
+        <div class="info-value-static">GoldHEN v2.4b18.12</div>
+      </div>
+
+      <div class="info-row">
+        <span class="info-label">Ngày cập nhật</span>
+        <div class="info-value-static">22/09/2026</div>
+      </div>
+
+      <div class="info-row">
+        <span class="info-label">Bộ nhớ tạm (Cache)</span>
+        <div id="cache"></div>
+      </div>
+
+      <div class="info-row">
+        <span class="info-label">Trạng thái</span>
+        <div id="state">Đang kiểm tra firmware…</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var stateEl = document.getElementById("state");
+      var detEl = document.getElementById("det");
+      var cacheEl = document.getElementById("cache");
+      function setState(t, c) { stateEl.textContent = t; stateEl.className = c || ""; }
+      function setCache(t, ok) { cacheEl.textContent = t; cacheEl.className = ok ? "cacheok" : ""; }
+      var params = new URLSearchParams(location.search);
+
+      var SUPPORTED = { 1302: 1, 1304: 1, 1350: 1, 1352: 1 }; // firmware được hỗ trợ
+
+      var key = null, fwnum = null;
+      var m = /PlayStation\s+4[\/ ](\d+)\.(\d+)/.exec(navigator.userAgent);
+      if (m) {
+        var ms = parseInt(m[2], 16).toString(16);
+        if (ms.length < 2) ms = "0" + ms;
+        key = m[1] + "." + ms;
+        fwnum = parseInt(m[1], 10) * 100 + parseInt(ms, 10);
+      }
+
+      var forced = params.get("force") === "1";
+      var supported = forced || (fwnum !== null && SUPPORTED[fwnum] === 1);
+      detEl.innerHTML = "<b>" + (key || "không xác định") + "</b>"
+        + (supported ? " &middot; <span style='color:var(--success-color)'>Được hỗ trợ</span>"
+          : " &middot; <span style='color:var(--error-color)'>Không hỗ trợ</span>");
+
+      var target = "jb.html" + location.search;
+      function go() { setState("Đang tải bẻ khóa (jailbreak)…", "warn"); location.replace(target); }
+
+      function waitForTap(msg, action) {
+        setState(msg, "warn");
+        function fire() {
+          window.removeEventListener("click", fire);
+          window.removeEventListener("keydown", fire);
+          action();
+        }
+        window.addEventListener("click", fire);
+        window.addEventListener("keydown", fire);
+      }
+
+      if (!supported) {
+        setState("FIRMWARE KHÔNG ĐƯỢC HỖ TRỢ", "bad");
+        waitForTap("BẤM PHÍM X ĐỂ TIẾP TỤC CHẠY JAILBREAK", go);
+        return;
+      }
+
+      var ac = window.applicationCache;
+      if (!ac || !document.documentElement.hasAttribute("manifest")) {
+        go();
+      } else if (!navigator.onLine) {
+        setCache("Ngoại tuyến -- Chạy từ Cache", true);
+        go();
+      } else if (ac.status === ac.IDLE) {
+        setCache("Đã lưu bộ nhớ tạm", true);
+        go();
+      } else if (ac.status === ac.UPDATEREADY) {
+        try { ac.swapCache(); } catch (e) { }
+        setCache("Cập nhật sẵn sàng", true);
+        waitForTap("CẬP NHẬT SẴN SÀNG -- Nhấn X hoặc chạm để tải lại & chạy",
+          function () { location.reload(); });
+      } else {
+        setCache("Đang kiểm tra bộ nhớ tạm…");
+        ac.addEventListener("downloading",
+          function () { setCache("Đang lưu bộ nhớ tạm (lần đầu)…"); }, false);
+        ac.addEventListener("progress", function (e) {
+          if (e && e.total)
+            setCache("Đang lưu " + Math.round((e.loaded / e.total) * 100) + "%");
+        }, false);
+        ac.addEventListener("cached", function () {
+          setCache("Đã lưu bộ nhớ tạm", true);
+          waitForTap("ĐÃ LƯU CACHE -- Nhấn X hoặc chạm để chạy", go);
+        }, false);
+        ac.addEventListener("updateready", function () {
+          try { ac.swapCache(); } catch (e) { }
+          setCache("Cập nhật sẵn sàng", true);
+          waitForTap("CẬP NHẬT SẴN SÀNG -- Nhấn X hoặc chạm để tải lại & chạy",
+            function () { location.reload(); });
+        }, false);
+        ac.addEventListener("noupdate", function () {
+          setCache("Đã lưu -- Sẵn sàng ngoại tuyến", true);
+          go();
+        }, false);
+        ac.addEventListener("error", function () {
+          setCache("Bộ nhớ tạm không khả dụng");
+          waitForTap("LỖI CACHE -- Nhấn X hoặc chạm để vẫn tiếp tục chạy", go);
+        }, false);
+        ac.addEventListener("obsolete", function () {
+          setCache("Cache đã hết hạn");
+          waitForTap("CACHE HẾT HẠN -- Nhấn X hoặc chạm để chạy", go);
+        }, false);
+      }
+    })();
+  </script>
+</body>
+
+</html>
